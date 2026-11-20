@@ -35,10 +35,17 @@ We provide the code for generating Chain-of-Thought reasoning based on medical Q
 
 1. Set the file path of each datasets in `./configs/dataset_configs.yml`
 2. Fill your Azure endpoint and API key in `./src/data_generation/utils.py`
-3. Run the following script
+3. Download [PrimeKG](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/IXA7BM) (`kg.csv`) and set its path in `./src/data_generation/generate_reasoning.py`
+4. Generate the node embeddings once (saved to `node_embeddings.pt`, a dict mapping each PrimeKG `x_type` to a numpy array of entity embeddings):
 
 ```bash
-python ./src/data_generation/Generate_Reasoning.py --dataset medqa --sample <number_of_samples> --start_idx 0 --batch_size 1&
+PYTHONPATH=./src/data_generation python -c "import utils; utils.generate_node_embeddings(knowledge_graph_path='/path/to/kg.csv')"
+```
+
+5. Run the following script (logs are written to `./logs`, results to `./results`)
+
+```bash
+python ./src/data_generation/generate_reasoning.py --dataset medqa --sample <number_of_samples> --start_idx 0 --batch_size 1&
 ```
 
 ## 👨‍⚕️ Model

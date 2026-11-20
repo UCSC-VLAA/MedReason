@@ -1,4 +1,5 @@
 from openai import AzureOpenAI  # openai>=1.0.0
+import os
 import time
 import json
 import networkx as nx
@@ -36,6 +37,7 @@ def init_logger(name=''):
     # set the logging level to INFO
     logger.setLevel(logging.INFO)
     # save the log to a file
+    os.makedirs('logs', exist_ok=True)
     handler = logging.FileHandler('logs/{name}-{time}.log'.format(name=name, time=time.strftime("%Y%m%d-%H%M%S")))
     handler.setLevel(logging.INFO)
     # create a logging format
@@ -292,11 +294,11 @@ Strictly follow the JSON structure below.
 {{
 "description": {{
     "text" : "The description of the medical question.",
-    "entity": [list of entities in the description, should not be empty]
+    "entities": [list of entities in the description, should not be empty]
     }},
 "conclusion": {{
     "text" : "The conclusion of the medical question.",
-    "entity": [list of entities in the description, should not be empty]
+    "entities": [list of entities in the conclusion, should not be empty]
     }}
 }}
 ```
