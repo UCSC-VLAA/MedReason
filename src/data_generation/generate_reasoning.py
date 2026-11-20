@@ -10,6 +10,7 @@ import os
 import argparse
 from tqdm import tqdm
 import multiprocessing
+import traceback
 
 total_cost = 0.0
 
@@ -81,10 +82,10 @@ Conclusion:
                                     topK_reasoning_paths = topK_reasoning_paths,
                                     max_path_number_per_group = max_path_number_per_group,
                                     logger = logger)
-    # if len of output_text is too long, return no reasoning path
-    elif len(output_text) > max_tokens:
-        return "No reasoning path. Too many paths." 
     output_text = '\n'.join([str(idx+1) + ':' + '->'.join(inner_list) for idx,inner_list in enumerate(path_all)])
+    # without path filtering, return no reasoning path if output_text is too long
+    if not filter_path and len(output_text) > max_tokens:
+        return "No reasoning path. Too many paths."
     logger.info(f"reasoning paths used: {output_text}")
     prompt = answer_prompt2.format(question = reformat_question,answer = reformat_answer , paths=output_text)
     result = utils.run_llm(prompt,temperature,max_tokens,engine)
@@ -116,12 +117,19 @@ def process_sample(sample_id):
     
     logger.info(f"Processing sample id {sample_id}.")
 
-    reason = reasoning_generation(question, answer, G, emb_model, nodeemb_dict, filter_path=True)
+    # kg must be the PrimeKG DataFrame (entity matching queries its x_type / x_name columns);
+    # path search uses the global networkx graph G.
+    try:
+        reason = reasoning_generation(question, answer, primekg, emb_model, nodeemb_dict, filter_path=True)
+    except Exception as e:
+        logger.error(f"Sample id {sample_id} failed:\n{traceback.format_exc()}")
+        reason = "No reasoning path found. Error: " + str(e)
     logger.info(f"Finished sample id {sample_id} with reasoning: {reason}")
     return {
         "id": sample_id,
         "question": question,
         "reasoning": reason,
+        "huatuo": comparing_reasoning,
         "answer": answer,
         "options": options
     }
@@ -191,6 +199,7 @@ if __name__ == '__main__':
                 try:
                     reason = reasoning_generation(question, answer, primekg, emb_model, nodeemb_dict, filter_path=True)
                 except Exception as e:
+                    logger.error(f"Sample {ids} failed:\n{traceback.format_exc()}")
                     reason = "No reasoning path found. Error: " + str(e)
         
                 logger.info(f"Reasoning: {reason}")
@@ -203,7 +212,7 @@ if __name__ == '__main__':
             initializer=worker_init,
             initargs=(dataset, G, primekg, emb_model, nodeemb_dict, object_dataset_name)
         ) as pool, open(result_file_name, 'w') as f:
-            results = list(tqdm(pool.imap(process_sample, range(test_samples)), total=test_samples))
+            results = list(tqdm(pool.imap(process_sample, range(args.start_idx, end_idx)), total=test_samples))
             for res in results:
                 f.write(json.dumps(res) + "\n")
         
